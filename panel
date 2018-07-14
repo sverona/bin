@@ -1,0 +1,37 @@
+#!/bin/sh
+ 
+cd $(dirname $0)
+
+. ./panel_profile
+
+if xdo id -a "$PANEL_WM_NAME" > /dev/null ; then
+	printf "%s\n" "The panel is already running." >&2
+	exit 1
+fi
+
+trap 'trap - TERM; kill 0' INT TERM QUIT EXIT
+
+for n in 0 1; do
+    [ -e "$PANEL_FIFO"_$n ] && rm "$PANEL_FIFO"_$n
+    mkfifo "$PANEL_FIFO"_$n
+
+    # xtitle -sf 'T%s' > "$PANEL_FIFO" &
+    clock -sf 'S %A, %d %B %Y, %I:%M %P' > "$PANEL_FIFO"_$n &
+    conky > "$PANEL_FIFO"_$n &
+
+    . ./panel_colors
+
+    ./panel_bar < "$PANEL_FIFO"_$n | lemonbar -d -a 32 \
+        -g $(($PANEL_WIDTH - 2 * $PANEL_SPACER))x$(($PANEL_SPACER + $PANEL_HEIGHT))+$(($PANEL_LEFT + $PANEL_WIDTH * n + PANEL_SPACER))+$PANEL_SPACER -f 'scientifica:pixelsize=12' -f 'Baekmuk Gulim:pixelsize=12' -F "$COLOR_DEFAULT_FG" -B "$COLOR_DEFAULT_BG" | sh &
+done
+
+wid=$(xdo id -a "$PANEL_WM_NAME")
+tries_left=20
+while [ -z "$wid" -a "$tries_left" -gt 0 ] ; do
+	sleep 0.05
+	wid=$(xdo id -a "$PANEL_WM_NAME")
+	tries_left=$((tries_left - 1))
+done
+[ -n "$wid" ] && xdo above -t "$(xdo id -N Bspwm -n root | sort | head -n 1)" "$wid"
+
+wait

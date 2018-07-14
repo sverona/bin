@@ -1,0 +1,7 @@
+#!/bin/sh
+
+attrib() {
+  playerctl metadata $1
+}
+
+echo "$(attrib xesam:artist) - $(attrib xesam:title)"
